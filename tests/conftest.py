@@ -13,6 +13,8 @@ class FakePostizClient:
 
     def __init__(self) -> None:
         self.posts: list[dict] = []
+        self.created: list[dict] = []
+        self.create_response: list[dict] = []
         self.error: Exception | None = None
         self.list_posts_calls: list[tuple[object, object]] = []
 
@@ -23,6 +25,12 @@ class FakePostizClient:
         if self.error is not None:
             raise self.error
         return PostizPostsResponse.model_validate({"posts": self.posts})
+
+    async def create_post(self, payload: dict) -> list[dict]:
+        self.created.append(payload)
+        if self.error is not None:
+            raise self.error
+        return self.create_response
 
     async def close(self) -> None:
         pass
