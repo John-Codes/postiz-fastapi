@@ -73,6 +73,16 @@ if tailscale serve status 2>/dev/null | grep -q "No serve config"; then
   warn "tailscale serve not configured; run: sudo tailscale set --operator=\$USER then postiz.sh doctor"
 else
   ok "tailscale serve configured"
+  host="$(tailscale status --json 2>/dev/null | python3 -c \
+    'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null)"
+  if [[ -n "$host" ]]; then
+    # The first hit has to generate a TLS certificate, so allow a slow first try.
+    if curl -fs --max-time 30 "https://$host/health" >/dev/null 2>&1; then
+      ok "tailnet https://$host/health (this is your phone URL)"
+    else
+      bad "tailnet https://$host/health failed; check 'tailscale serve status'"
+    fi
+  fi
 fi
 
 echo
