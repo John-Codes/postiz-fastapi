@@ -1,0 +1,21 @@
+[Unit]
+Description=Postiz stack (official Postiz + Temporal, loopback only)
+Documentation=file:///home/aisurvivor/postiz-stack/README.md
+# A user unit cannot depend on the system docker.service, so we wait for the
+# Docker socket in ExecStartPre instead.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/aisurvivor/postiz-stack/postiz-docker-compose
+ExecStartPre=/bin/sh -c 'i=0; while [ $$i -lt 30 ] && [ ! -S /var/run/docker.sock ]; do i=$$((i+1)); sleep 1; done; [ -S /var/run/docker.sock ]'
+ExecStart=/bin/sh -c 'docker compose up -d'
+ExecStop=/bin/sh -c 'docker compose stop'
+ExecStartPost=/bin/sh -c 'i=0; while [ $$i -lt 60 ]; do if [ "$$(/usr/bin/curl -s -o /dev/null -w %%{http_code} --max-time 5 http://127.0.0.1:4007/api/public/v1/is-connected 2>/dev/null)" = 401 ]; then echo "Postiz API is serving (401 = auth reached, as expected without a key)"; exit 0; fi; i=$$((i+1)); sleep 2; done; echo "WARNING: Postiz API still not serving after 120s; if you get 502s run: docker compose -f /home/aisurvivor/postiz-stack/postiz-docker-compose/docker-compose.yaml restart postiz"; exit 0'
+TimeoutStartSec=240
+TimeoutStopSec=120
+
+[Install]
+WantedBy=default.target

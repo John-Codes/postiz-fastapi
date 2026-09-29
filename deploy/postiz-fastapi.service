@@ -1,0 +1,21 @@
+[Unit]
+Description=Postiz FastAPI (private posts API, reached over Tailscale)
+Documentation=file:///home/aisurvivor/postiz-fastapi/USAGE.md
+After=network-online.target postiz-stack.service
+Wants=network-online.target postiz-stack.service
+
+[Service]
+Type=simple
+# Required: settings.py reads .env from a path relative to the working directory.
+WorkingDirectory=/home/aisurvivor/postiz-fastapi
+Environment=HOME=/home/aisurvivor
+ExecStart=/home/aisurvivor/postiz-fastapi/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Type=simple reports "started" the moment the process is forked, which is
+# before uvicorn binds the port. Hold the unit in "activating" until it answers.
+ExecStartPost=/bin/sh -c 'i=0; while [ $$i -lt 30 ]; do if /usr/bin/curl -fs --max-time 3 http://127.0.0.1:8000/health >/dev/null 2>&1; then echo "FastAPI answering on http://127.0.0.1:8000"; exit 0; fi; i=$$((i+1)); sleep 1; done; echo "WARNING: FastAPI did not answer /health within 30s"; exit 0'
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target
