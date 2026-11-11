@@ -41,12 +41,18 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def fake_postiz() -> Iterator[FakePostizClient]:
     """Replace the Postiz client dependency for the duration of one test.
 
     Without this, a test would call the real Postiz over the network, which
     would make the suite depend on Docker and burn the 30 requests/hour budget.
+
+    Autouse because FastAPI resolves dependencies before it validates the
+    request body: a test that only checks a 422 still has to resolve the client
+    dependency, and the real one raises 503 whenever POSTIZ_API_KEY is unset.
+    Without this the suite passed only because a local .env happened to hold a
+    key, and failed everywhere else.
     """
     fake = FakePostizClient()
     app.dependency_overrides[get_postiz_client] = lambda: fake
